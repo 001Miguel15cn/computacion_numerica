@@ -12,6 +12,7 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 x, y = symbols('x y')
+from sympy import hessian, Function, cos, sin, exp as sym_exp
 
 # ──────────────────────────────────────────────────────────────
 # HELPERS
@@ -457,3 +458,210 @@ def diferencias_divididas(xs_str: str, ys_str: str, eval_x: float = None):
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# ──────────────────────────────────────────────────────────────
+# TAYLOR 2 VARIABLES
+# ──────────────────────────────────────────────────────────────
+@app.get("/taylor2")
+def taylor2(expr: str, a: float = 0, b: float = 0, orden: int = 2,
+            eval_x: float = None, eval_y: float = None):
+    try:
+        import numpy as np
+        f = sympify(expr)
+        pasos = []
+        pasos.append(f"Función: f(x,y) = {str(f)}")
+        pasos.append(f"Punto de expansión: (a={a}, b={b}),  Orden: {orden}")
+        s0 = {x: a, y: b}
+        f0 = float(f.subs(s0).evalf())
+        fx  = diff(f, x);  fx_v  = float(fx.subs(s0).evalf())
+        fy  = diff(f, y);  fy_v  = float(fy.subs(s0).evalf())
+        pasos.append(f"\nPaso 1: Derivadas de primer orden en ({a},{b})")
+        pasos.append(f"  f(a,b)  = {round(f0,8)}")
+        pasos.append(f"  fx(a,b) = {round(fx_v,8)}   [∂f/∂x = {str(fx)}]")
+        pasos.append(f"  fy(a,b) = {round(fy_v,8)}   [∂f/∂y = {str(fy)}]")
+        dx_sym = x - a;  dy_sym = y - b
+        P = f0 + fx_v * dx_sym + fy_v * dy_sym
+        fxx_v = fxy_v = fyy_v = None
+        if orden >= 2:
+            fxx = diff(f, x, 2);   fxx_v = float(fxx.subs(s0).evalf())
+            fxy = diff(diff(f,x),y); fxy_v = float(fxy.subs(s0).evalf())
+            fyy = diff(f, y, 2);   fyy_v = float(fyy.subs(s0).evalf())
+            pasos.append(f"\nPaso 2: Derivadas de segundo orden en ({a},{b})")
+            pasos.append(f"  fxx(a,b) = {round(fxx_v,8)}   [∂²f/∂x²  = {str(fxx)}]")
+            pasos.append(f"  fxy(a,b) = {round(fxy_v,8)}   [∂²f/∂x∂y = {str(diff(diff(f,x),y))}]")
+            pasos.append(f"  fyy(a,b) = {round(fyy_v,8)}   [∂²f/∂y²  = {str(fyy)}]")
+            P += (fxx_v/2)*dx_sym**2 + fxy_v*dx_sym*dy_sym + (fyy_v/2)*dy_sym**2
+        P_sym = simplify(P)
+        P_lat = latex(P_sym)
+        pasos.append(f"\nPaso 3: Polinomio P(x,y) de orden {orden}:")
+        pasos.append(f"  P(x,y) = {str(P_sym).replace('**','^')}")
+        resultado_eval = real_val = error_abs = None
+        if eval_x is not None and eval_y is not None:
+            resultado_eval = float(P_sym.subs({x: eval_x, y: eval_y}).evalf())
+            real_val       = float(f.subs({x: eval_x, y: eval_y}).evalf())
+            error_abs      = abs(real_val - resultado_eval)
+            pasos.append(f"\nPaso 4: Evaluación en ({eval_x}, {eval_y})")
+            pasos.append(f"  P({eval_x},{eval_y}) = {round(resultado_eval,8)}")
+            pasos.append(f"  f({eval_x},{eval_y}) = {round(real_val,8)}  (valor real)")
+            pasos.append(f"  Error absoluto      = {error_abs:.6e}")
+        xs_g = np.linspace(a-1.5, a+1.5, 20).tolist()
+        ys_g = np.linspace(b-1.5, b+1.5, 20).tolist()
+        f_lam = lambdify([x, y], f, "numpy")
+        P_lam = lambdify([x, y], P_sym, "numpy")
+        try:
+            Z_real = [[float(f_lam(xi,yi)) for xi in xs_g] for yi in ys_g]
+            Z_poly = [[float(P_lam(xi,yi)) for xi in xs_g] for yi in ys_g]
+        except Exception:
+            Z_real = [[float(f.subs({x:xi,y:yi}).evalf())   for xi in xs_g] for yi in ys_g]
+            Z_poly = [[float(P_sym.subs({x:xi,y:yi}).evalf()) for xi in xs_g] for yi in ys_g]
+        return {
+            "success": True, "expr": str(f),
+            "polinomio": str(P_sym).replace("**","^"), "polinomio_latex": P_lat,
+            "f0":f0,"fx":fx_v,"fy":fy_v,"fxx":fxx_v,"fxy":fxy_v,"fyy":fyy_v,
+            "eval_x":eval_x,"eval_y":eval_y,
+            "resultado_eval": round(resultado_eval,8) if resultado_eval is not None else None,
+            "real_val": round(real_val,8) if real_val is not None else None,
+            "error_abs": error_abs, "pasos": pasos,
+            "xs_grid":xs_g,"ys_grid":ys_g,"z_real":Z_real,"z_poly":Z_poly,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# ──────────────────────────────────────────────────────────────
+# AJUSTE DE CURVAS
+# ──────────────────────────────────────────────────────────────
+def _gauss_elim(A, b_vec):
+    import numpy as np
+    n = len(b_vec)
+    M = np.array([[A[i][j] for j in range(n)] + [b_vec[i]] for i in range(n)], dtype=float)
+    for col in range(n):
+        piv = max(range(col,n), key=lambda r: abs(M[r][col]))
+        M[[col,piv]] = M[[piv,col]]
+        if abs(M[col][col]) < 1e-14:
+            raise ValueError("Sistema singular — puntos colineales o insuficientes para el grado")
+        for row in range(col+1,n):
+            f_ = M[row][col]/M[col][col]; M[row] -= f_*M[col]
+    sol = np.zeros(n)
+    for i in range(n-1,-1,-1):
+        sol[i] = M[i][n]
+        for j in range(i+1,n): sol[i] -= M[i][j]*sol[j]
+        sol[i] /= M[i][i]
+    return sol.tolist()
+
+def _r2(ys, yp):
+    import numpy as np
+    ys,yp=np.array(ys),np.array(yp)
+    ss=np.sum((ys-ys.mean())**2)
+    return float(1-np.sum((ys-yp)**2)/ss) if ss>0 else 1.0
+
+@app.get("/ajuste/lineal")
+def ajuste_lineal(xs_str: str, ys_str: str, eval_x: float = None):
+    try:
+        import numpy as np
+        xs=[float(v) for v in xs_str.split(",")]; ys=[float(v) for v in ys_str.split(",")]
+        if len(xs)!=len(ys): raise ValueError("xs e ys deben tener la misma cantidad de puntos")
+        n=len(xs)
+        if n<2: raise ValueError("Se necesitan al menos 2 puntos")
+        sx=sum(xs);sy=sum(ys);sxy=sum(xs[i]*ys[i] for i in range(n));sx2=sum(xi**2 for xi in xs)
+        det=n*sx2-sx**2
+        if abs(det)<1e-14: raise ValueError("Todos los x son iguales — sistema singular")
+        a1=(n*sxy-sx*sy)/det; a0=(sy-a1*sx)/n
+        yp=[a0+a1*xi for xi in xs]; R2=_r2(ys,yp)
+        pasos=[
+            f"Puntos: {list(zip([round(v,4) for v in xs],[round(v,4) for v in ys]))}",
+            f"Modelo: y = a₀ + a₁·x",
+            f"\nSumas:  Σx={round(sx,6)}  Σy={round(sy,6)}  Σxy={round(sxy,6)}  Σx²={round(sx2,6)}",
+            f"\nPaso 1: Coeficientes",
+            f"  a₁ = (n·Σxy − Σx·Σy)/(n·Σx² − (Σx)²) = {round(a1,8)}",
+            f"  a₀ = (Σy − a₁·Σx)/n = {round(a0,8)}",
+            f"\nModelo: y = {round(a0,6)} + {round(a1,6)}·x",
+            f"R² = {round(R2,6)}  ({round(R2*100,2)}% varianza explicada)",
+            f"\nResiduos:",
+        ]
+        for i in range(n): pasos.append(f"  x={xs[i]}, y={ys[i]}, ŷ={round(yp[i],6)}, e={round(ys[i]-yp[i],6)}")
+        resultado_eval=None
+        if eval_x is not None:
+            resultado_eval=round(a0+a1*eval_x,8); pasos.append(f"\ny({eval_x}) = {resultado_eval}")
+        xs_p=np.linspace(min(xs)-.5,max(xs)+.5,100).tolist()
+        return {"success":True,"a0":round(a0,8),"a1":round(a1,8),"R2":round(R2,6),
+                "resultado_eval":resultado_eval,"pasos":pasos,
+                "x_plot":xs_p,"y_plot":[a0+a1*xi for xi in xs_p],"puntos_x":xs,"puntos_y":ys}
+    except Exception as e: return {"success":False,"error":str(e)}
+
+@app.get("/ajuste/polinomial")
+def ajuste_polinomial(xs_str: str, ys_str: str, grado: int = 2, eval_x: float = None):
+    try:
+        import numpy as np
+        xs=[float(v) for v in xs_str.split(",")]; ys=[float(v) for v in ys_str.split(",")]
+        if len(xs)!=len(ys): raise ValueError("xs e ys deben tener la misma cantidad de puntos")
+        if grado not in (2,3): raise ValueError("Grado debe ser 2 o 3")
+        if len(xs)<=grado: raise ValueError(f"Se necesitan al menos {grado+1} puntos para grado {grado}")
+        n=len(xs); m=grado+1
+        A=[[xi**k for k in range(m)] for xi in xs]
+        At=[[A[i][j] for i in range(n)] for j in range(m)]
+        AtA=[[sum(At[i][k]*At[j][k] for k in range(n)) for j in range(m)] for i in range(m)]
+        Aty=[sum(At[i][k]*ys[k] for k in range(n)) for i in range(m)]
+        coefs=_gauss_elim(AtA,Aty)
+        def poly(xv): return sum(coefs[k]*xv**k for k in range(m))
+        yp=[poly(xi) for xi in xs]; R2=_r2(ys,yp)
+        terms=" + ".join(
+            f"{round(coefs[k],6)}" if k==0 else
+            (f"{round(coefs[k],6)}·x" if k==1 else f"{round(coefs[k],6)}·x^{k}")
+            for k in range(m))
+        pasos=[
+            f"Puntos: {list(zip([round(v,4) for v in xs],[round(v,4) for v in ys]))}",
+            f"Grado: {grado}",
+            f"\nSistema normal A^T·A·c = A^T·y  (eliminación gaussiana con pivoteo)",
+            f"\nCoeficientes:",
+        ]
+        for k,c in enumerate(coefs): pasos.append(f"  a{k} = {round(c,8)}")
+        pasos+=[f"\nModelo: y = {terms}",
+                f"R² = {round(R2,6)}  ({round(R2*100,2)}% varianza explicada)",
+                f"\nResiduos:"]
+        for i in range(n): pasos.append(f"  x={xs[i]}, y={ys[i]}, ŷ={round(yp[i],6)}, e={round(ys[i]-yp[i],6)}")
+        resultado_eval=None
+        if eval_x is not None:
+            resultado_eval=round(poly(eval_x),8); pasos.append(f"\ny({eval_x}) = {resultado_eval}")
+        xs_p=np.linspace(min(xs)-.5,max(xs)+.5,150).tolist()
+        return {"success":True,"coeficientes":[round(c,8) for c in coefs],"grado":grado,"R2":round(R2,6),
+                "resultado_eval":resultado_eval,"pasos":pasos,
+                "x_plot":xs_p,"y_plot":[poly(xi) for xi in xs_p],"puntos_x":xs,"puntos_y":ys}
+    except Exception as e: return {"success":False,"error":str(e)}
+
+@app.get("/ajuste/exponencial")
+def ajuste_exponencial(xs_str: str, ys_str: str, eval_x: float = None):
+    try:
+        import numpy as np, math as _math
+        xs=[float(v) for v in xs_str.split(",")]; ys=[float(v) for v in ys_str.split(",")]
+        if len(xs)!=len(ys): raise ValueError("xs e ys deben tener la misma cantidad de puntos")
+        if any(yi<=0 for yi in ys): raise ValueError("Todos los valores de y deben ser > 0")
+        n=len(xs)
+        if n<2: raise ValueError("Se necesitan al menos 2 puntos")
+        lny=[_math.log(yi) for yi in ys]
+        sx=sum(xs);slny=sum(lny);sxlny=sum(xs[i]*lny[i] for i in range(n));sx2=sum(xi**2 for xi in xs)
+        det=n*sx2-sx**2
+        if abs(det)<1e-14: raise ValueError("Sistema singular")
+        b=(n*sxlny-sx*slny)/det; lna=(slny-b*sx)/n; a=_math.exp(lna)
+        yp=[a*_math.exp(b*xi) for xi in xs]; R2=_r2(ys,yp)
+        pasos=[
+            f"Puntos: {list(zip([round(v,4) for v in xs],[round(v,4) for v in ys]))}",
+            f"Modelo: y = a·e^(b·x)",
+            f"\nLinealización: ln(y) = ln(a) + b·x",
+            f"\nSumas:  Σx={round(sx,6)}  Σln(y)={round(slny,6)}  Σx·ln(y)={round(sxlny,6)}  Σx²={round(sx2,6)}",
+            f"\nCoeficientes:",
+            f"  b    = {round(b,8)}",
+            f"  ln(a)= {round(lna,8)}",
+            f"  a    = {round(a,8)}",
+            f"\nModelo: y = {round(a,6)} · e^({round(b,6)}·x)",
+            f"R² = {round(R2,6)}  ({round(R2*100,2)}% varianza explicada)",
+            f"\nResiduos:",
+        ]
+        for i in range(n): pasos.append(f"  x={xs[i]}, y={ys[i]}, ŷ={round(yp[i],6)}, e={round(ys[i]-yp[i],6)}")
+        resultado_eval=None
+        if eval_x is not None:
+            resultado_eval=round(a*_math.exp(b*eval_x),8); pasos.append(f"\ny({eval_x}) = {resultado_eval}")
+        xs_p=np.linspace(min(xs)-.5,max(xs)+.5,150).tolist()
+        return {"success":True,"a":round(a,8),"b":round(b,8),"R2":round(R2,6),
+                "resultado_eval":resultado_eval,"pasos":pasos,
+                "x_plot":xs_p,"y_plot":[a*_math.exp(b*xi) for xi in xs_p],"puntos_x":xs,"puntos_y":ys}
+    except Exception as e: return {"success":False,"error":str(e)}

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
+<head><script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <meta charset="UTF-8">
 <title>Métodos Numéricos</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -284,6 +284,12 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   <div class="nav-item" onclick="showPage('diferencias',this)">
     <span class="nav-icon">Δ</span> Dif. divididas
   </div>
+  <div class="nav-item" onclick="showPage('taylor2',this)">
+    <span class="nav-icon">∂</span> Taylor 2 vars
+  </div>
+  <div class="nav-item" onclick="showPage('ajuste',this)">
+    <span class="nav-icon">≈</span> Ajuste curvas
+  </div>
 </aside>
 
 <!-- ── MAIN ── -->
@@ -479,6 +485,133 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   </div>
   <div id="res-ddn"></div>
   <canvas id="chart-ddn" style="margin-top:20px;display:none"></canvas>
+</div>
+
+<!-- ══════════════════════ TAYLOR 2 VARIABLES ══════════════════════ -->
+<div id="page-taylor2" class="page">
+  <p class="page-title">Polinomio de Taylor — 2 variables</p>
+  <p class="page-sub">Aproximación de f(x,y) en un punto (a,b) usando derivadas parciales</p>
+  <div class="teoria-card">
+    <h2>Expansión de Taylor en 2 variables</h2>
+    <p>El polinomio de orden 2 alrededor del punto (a,b) usa las derivadas parciales de primer y segundo orden. Cuánto más cerca estés de (a,b), mejor la aproximación.</p>
+    <div class="formula-block">\[ P(x,y) = f(a,b) + f_x\Delta x + f_y\Delta y + \frac{1}{2!}\left(f_{xx}\Delta x^2 + 2f_{xy}\Delta x\Delta y + f_{yy}\Delta y^2\right) \]</div>
+    <p style="margin-top:10px">Las derivadas parciales se calculan <strong>simbólicamente</strong> con SymPy. Δx = x−a, Δy = y−b.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Parámetros</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3">
+        <label>f(x,y) — sintaxis SymPy: sin(x), exp(x), cos(y), x**2 + y**2</label>
+        <input id="t2-func" value="exp(x)*cos(y)">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Punto a (centro en x)</label><input id="t2-a" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>Punto b (centro en y)</label><input id="t2-b" type="number" value="0" step="0.1"></div>
+      <div class="form-group">
+        <label>Orden</label>
+        <select id="t2-orden">
+          <option value="1">Orden 1 (lineal)</option>
+          <option value="2" selected>Orden 2 (cuadrático)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Evaluar en x =</label><input id="t2-x" type="number" value="0.3" step="0.1"></div>
+      <div class="form-group"><label>Evaluar en y =</label><input id="t2-y" type="number" value="0.2" step="0.1"></div>
+    </div>
+    <button class="btn" onclick="calcTaylor2()">▶ Calcular</button>
+  </div>
+  <div id="res-taylor2"></div>
+  <div class="chart-wrap">
+    <div id="taylor2-chart" style="height:600px;"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ AJUSTE DE CURVAS ══════════════════════ -->
+<div id="page-ajuste" class="page">
+  <p class="page-title">Ajuste de curvas — Mínimos cuadrados</p>
+  <p class="page-sub">Encuentra la curva que minimiza la suma de cuadrados de residuos</p>
+  <div class="teoria-card">
+    <h2>Mínimos cuadrados</h2>
+    <p>Dado un conjunto de puntos (xᵢ, yᵢ), se buscan los parámetros del modelo que minimizan Σ(yᵢ − ŷᵢ)². El sistema de ecuaciones normales se resuelve por eliminación gaussiana. El coeficiente R² mide la bondad del ajuste (1 = perfecto).</p>
+    <div class="formula-block">\[ \min \sum_{i=1}^{n}(y_i - \hat{y}(x_i))^2 \qquad R^2 = 1 - \frac{SS_{res}}{SS_{tot}} \]</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showSub('ajuste','lineal',this)">Lineal (grado 1)</button>
+    <button class="tab" onclick="showSub('ajuste','poli',this)">Polinomial (grado 2–3)</button>
+    <button class="tab" onclick="showSub('ajuste','exp',this)">Exponencial</button>
+  </div>
+
+  <!-- LINEAL -->
+  <div id="sub-ajuste-lineal" class="subpage active">
+    <div class="teoria-card">
+      <p>Ajusta <strong>y = a₀ + a₁x</strong> con las fórmulas directas del sistema normal 2×2.</p>
+      <div class="formula-block">\[ a_1 = \frac{n\sum x_iy_i - \sum x_i\sum y_i}{n\sum x_i^2 - (\sum x_i)^2}, \quad a_0 = \frac{\sum y_i - a_1\sum x_i}{n} \]</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Datos</div>
+      <div class="form-row">
+        <div class="form-group"><label>Valores de x (separados por coma)</label><input id="alin-x" value="1, 2, 3, 4, 5"></div>
+        <div class="form-group"><label>Valores de y (separados por coma)</label><input id="alin-y" value="2.1, 3.9, 6.2, 7.8, 10.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="max-width:180px"><label>Evaluar modelo en x =</label><input id="alin-eval" type="number" value="3.5" step="0.1"></div>
+      </div>
+      <button class="btn" onclick="calcAjusteLineal()">▶ Calcular</button>
+    </div>
+    <div id="res-alin"></div>
+    <canvas id="chart-alin" style="margin-top:20px;display:none"></canvas>
+  </div>
+
+  <!-- POLINOMIAL -->
+  <div id="sub-ajuste-poli" class="subpage">
+    <div class="teoria-card">
+      <p>Ajusta <strong>y = a₀ + a₁x + a₂x²</strong> (o grado 3) resolviendo AᵀA·c = Aᵀy por eliminación gaussiana con pivoteo.</p>
+      <div class="formula-block">\[ \min \sum_{i=1}^{n}\!\left(y_i - \sum_{k=0}^{m}a_k x_i^k\right)^{\!2} \]</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Datos</div>
+      <div class="form-row">
+        <div class="form-group"><label>Valores de x</label><input id="apoli-x" value="0, 1, 2, 3, 4, 5"></div>
+        <div class="form-group"><label>Valores de y</label><input id="apoli-y" value="2, 3, 6, 11, 18, 27"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Grado</label>
+          <select id="apoli-grado">
+            <option value="2">Grado 2 (cuadrático)</option>
+            <option value="3">Grado 3 (cúbico)</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:180px"><label>Evaluar modelo en x =</label><input id="apoli-eval" type="number" value="2.5" step="0.1"></div>
+      </div>
+      <button class="btn" onclick="calcAjustePoli()">▶ Calcular</button>
+    </div>
+    <div id="res-apoli"></div>
+    <canvas id="chart-apoli" style="margin-top:20px;display:none"></canvas>
+  </div>
+
+  <!-- EXPONENCIAL -->
+  <div id="sub-ajuste-exp" class="subpage">
+    <div class="teoria-card">
+      <p>Ajusta <strong>y = ae<sup>bx</sup></strong> linealizando: ln(y) = ln(a) + bx, luego aplica mínimos cuadrados lineal. <strong>Requiere y &gt; 0.</strong></p>
+      <div class="formula-block">\[ y = ae^{bx} \implies \ln y = \underbrace{\ln a}_{\alpha} + bx \]</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Datos</div>
+      <div class="form-row">
+        <div class="form-group"><label>Valores de x</label><input id="aexp-x" value="0, 1, 2, 3, 4"></div>
+        <div class="form-group"><label>Valores de y (todos &gt; 0)</label><input id="aexp-y" value="2.1, 3.8, 7.3, 13.4, 25.0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="max-width:180px"><label>Evaluar modelo en x =</label><input id="aexp-eval" type="number" value="2.5" step="0.1"></div>
+      </div>
+      <button class="btn" onclick="calcAjusteExp()">▶ Calcular</button>
+    </div>
+    <div id="res-aexp"></div>
+    <canvas id="chart-aexp" style="margin-top:20px;display:none"></canvas>
+  </div>
 </div>
 
 </main>
@@ -735,6 +868,194 @@ async function calcDDN() {
 }
 
 function enc(s) { return encodeURIComponent(s); }
+
+/* ─────────── TAYLOR 2 VARIABLES ─────────── */
+async function calcTaylor2() {
+  const expr  = document.getElementById("t2-func").value;
+  const a     = document.getElementById("t2-a").value;
+  const b     = document.getElementById("t2-b").value;
+  const orden = document.getElementById("t2-orden").value;
+  const ex    = document.getElementById("t2-x").value;
+  const ey    = document.getElementById("t2-y").value;
+  const url   = `${BASE}/taylor2?expr=${enc(expr)}&a=${a}&b=${b}&orden=${orden}&eval_x=${ex}&eval_y=${ey}`;
+  const r = await fetch(url).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-taylor2", r.error);
+
+  const derivs = [
+    { label:"f(a,b)",  value: r.f0?.toFixed(6) ?? "—" },
+    { label:"fx",      value: r.fx?.toFixed(6) ?? "—" },
+    { label:"fy",      value: r.fy?.toFixed(6) ?? "—" },
+  ];
+  if (r.fxx !== null && r.fxx !== undefined) {
+    derivs.push({ label:"fxx", value: r.fxx?.toFixed(6) });
+    derivs.push({ label:"fxy", value: r.fxy?.toFixed(6) });
+    derivs.push({ label:"fyy", value: r.fyy?.toFixed(6) });
+  }
+  let html = statsRow(derivs);
+  if (r.resultado_eval !== null && r.resultado_eval !== undefined) {
+    html += statsRow([
+      { label:`P(${ex},${ey})`, value: r.resultado_eval },
+      { label:`f(${ex},${ey}) real`, value: r.real_val },
+      { label:"Error abs.", value: r.error_abs?.toExponential(3) ?? "—" },
+    ]);
+  }
+  html += `<div class="formula-result">\\[ P(x,y) = ${r.polinomio_latex} \\]</div>`;
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-taylor2", html);
+  MathJax.typesetPromise();
+  Plotly.newPlot(
+    "taylor2-chart",
+    [
+      {
+        x: r.xs_grid,
+        y: r.ys_grid,
+        z: r.z_real,
+        type: "surface",
+        name: "f(x,y)"
+      },
+      {
+        x: r.xs_grid,
+        y: r.ys_grid,
+        z: r.z_poly,
+        type: "surface",
+        opacity: 0.85,
+        name: "Taylor"
+      }
+    ],
+    {
+      paper_bgcolor: "#0f172a",
+      plot_bgcolor: "#0f172a",
+
+      font: {
+        color: "#94a3b8"
+      },
+
+      title: {
+        text: "Taylor vs Función Real",
+        font: {
+          color: "#e2e8f0"
+        }
+      },
+
+      scene: {
+        bgcolor: "#0f172a",
+
+        xaxis: {
+          title: "x",
+          color: "#94a3b8",
+          gridcolor: "#1e293b",
+          zerolinecolor: "#334155",
+          backgroundcolor: "#0f172a"
+        },
+
+        yaxis: {
+          title: "y",
+          color: "#94a3b8",
+          gridcolor: "#1e293b",
+          zerolinecolor: "#334155",
+          backgroundcolor: "#0f172a"
+        },
+
+        zaxis: {
+          title: "z",
+          color: "#94a3b8",
+          gridcolor: "#1e293b",
+          zerolinecolor: "#334155",
+          backgroundcolor: "#0f172a"
+        }
+      },
+
+      legend: {
+        font: {
+          color: "#94a3b8"
+        }
+      },
+
+      margin: {
+        l: 0,
+        r: 0,
+        b: 0,
+        t: 40
+      }
+    },
+
+    {
+      responsive: true
+    }
+  );
+  
+}
+
+/* ─────────── AJUSTE LINEAL ─────────── */
+async function calcAjusteLineal() {
+  const xs = document.getElementById("alin-x").value;
+  const ys = document.getElementById("alin-y").value;
+  const ev = document.getElementById("alin-eval").value;
+  const r = await fetch(`${BASE}/ajuste/lineal?xs_str=${enc(xs)}&ys_str=${enc(ys)}&eval_x=${ev}`)
+    .then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-alin", r.error);
+  let html = statsRow([
+    { label:"a₀", value: r.a0 },
+    { label:"a₁", value: r.a1 },
+    { label:"R²", value: r.R2 },
+    { label:`ŷ(${ev})`, value: r.resultado_eval ?? "—" },
+  ]);
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-alin", html);
+  mkChart("chart-alin", r.x_plot, [
+    { label:"Ajuste lineal", data:r.y_plot, borderColor:"#22c55e", borderWidth:2, pointRadius:0 },
+    { label:"Puntos", data:r.x_plot.map(v=>{const i=r.puntos_x.findIndex(px=>Math.abs(px-v)<1e-9);return i>=0?r.puntos_y[i]:null;}),
+      borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
+
+/* ─────────── AJUSTE POLINOMIAL ─────────── */
+async function calcAjustePoli() {
+  const xs    = document.getElementById("apoli-x").value;
+  const ys    = document.getElementById("apoli-y").value;
+  const grado = document.getElementById("apoli-grado").value;
+  const ev    = document.getElementById("apoli-eval").value;
+  const r = await fetch(`${BASE}/ajuste/polinomial?xs_str=${enc(xs)}&ys_str=${enc(ys)}&grado=${grado}&eval_x=${ev}`)
+    .then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-apoli", r.error);
+  let html = statsRow([
+    { label:"Grado", value: r.grado },
+    { label:"R²", value: r.R2 },
+    { label:`ŷ(${ev})`, value: r.resultado_eval ?? "—" },
+  ]);
+  const coefStats = r.coeficientes.map((c,i)=>({label:`a${i}`,value:c}));
+  html += statsRow(coefStats);
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-apoli", html);
+  mkChart("chart-apoli", r.x_plot, [
+    { label:`Polinomio grado ${grado}`, data:r.y_plot, borderColor:"#a78bfa", borderWidth:2, pointRadius:0 },
+    { label:"Puntos", data:r.x_plot.map(v=>{const i=r.puntos_x.findIndex(px=>Math.abs(px-v)<1e-9);return i>=0?r.puntos_y[i]:null;}),
+      borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
+
+/* ─────────── AJUSTE EXPONENCIAL ─────────── */
+async function calcAjusteExp() {
+  const xs = document.getElementById("aexp-x").value;
+  const ys = document.getElementById("aexp-y").value;
+  const ev = document.getElementById("aexp-eval").value;
+  const r = await fetch(`${BASE}/ajuste/exponencial?xs_str=${enc(xs)}&ys_str=${enc(ys)}&eval_x=${ev}`)
+    .then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-aexp", r.error);
+  let html = statsRow([
+    { label:"a", value: r.a },
+    { label:"b", value: r.b },
+    { label:"R²", value: r.R2 },
+    { label:`ŷ(${ev})`, value: r.resultado_eval ?? "—" },
+  ]);
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-aexp", html);
+  mkChart("chart-aexp", r.x_plot, [
+    { label:"Ajuste exponencial", data:r.y_plot, borderColor:"#f87171", borderWidth:2, pointRadius:0 },
+    { label:"Puntos", data:r.x_plot.map(v=>{const i=r.puntos_x.findIndex(px=>Math.abs(px-v)<1e-9);return i>=0?r.puntos_y[i]:null;}),
+      borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
 </script>
 </body>
 </html>
