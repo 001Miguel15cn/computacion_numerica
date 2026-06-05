@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Métodos Numéricos</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── RESET / BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+/* ── LAYOUT ── */
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #1e293b;
+  border-right: 1px solid #334155;
+  padding: 28px 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sidebar-logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  padding: 0 20px 20px;
+  border-bottom: 1px solid #334155;
+  margin-bottom: 8px;
+}
+.sidebar-logo span { color: #22c55e; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 0;
+  font-size: 14px;
+  color: #94a3b8;
+  border-left: 3px solid transparent;
+  transition: all .15s;
+}
+.nav-item:hover { background: #0f172a; color: #e2e8f0; }
+.nav-item.active { background: #0f172a; color: #22c55e; border-left-color: #22c55e; }
+.nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
+.main {
+  flex: 1;
+  padding: 32px 40px;
+  overflow-y: auto;
+  max-width: 900px;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── CARDS ── */
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 22px 26px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #64748b;
+  margin-bottom: 14px;
+}
+
+/* ── TEORIA ── */
+.teoria-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px 26px;
+  margin-bottom: 20px;
+}
+.teoria-card h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 8px;
+}
+.teoria-card p {
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.7;
+}
+.formula-block {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 17px;
+}
+
+/* ── FORM ── */
+.form-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+.form-group label { font-size: 12px; color: #94a3b8; }
+.form-group input, .form-group select {
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  transition: border-color .15s;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34,197,94,.12);
+}
+
+/* ── BTN ── */
+.btn {
+  padding: 10px 22px;
+  background: #22c55e;
+  border: none;
+  border-radius: 8px;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: background .15s, transform .1s;
+}
+.btn:hover { background: #16a34a; }
+.btn:active { transform: scale(.97); }
+
+/* ── TABS ── */
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.tab {
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab.active { background: #334155; color: #e2e8f0; border-color: #475569; }
+.tab:hover:not(.active) { background: #1e293b; color: #94a3b8; }
+.subpage { display: none; }
+.subpage.active { display: block; }
+
+/* ── RESULTADOS ── */
+.result-wrap { margin-top: 18px; }
+.result-header {
+  padding: 8px 16px;
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.result-header.ok { background: #14532d; color: #86efac; }
+.result-header.err { background: #7f1d1d; color: #fca5a5; }
+.result-body {
+  padding: 14px 16px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow-y: auto;
+  line-height: 1.8;
+}
+
+/* ── STATS SUMMARY ── */
+.stats-row { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.stat-box {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 14px 20px;
+  min-width: 140px;
+}
+.stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 700; color: #22c55e; font-family: 'Courier New', monospace; }
+
+/* ── TABLA ── */
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  padding: 8px 12px;
+  background: #1e293b;
+  color: #64748b;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #1e293b;
+  font-family: 'Courier New', monospace;
+  color: #94a3b8;
+}
+tr:hover td { background: #1e293b; color: #e2e8f0; }
+
+/* ── FORMULA DISPLAY ── */
+.formula-result {
+  text-align: center;
+  font-size: 18px;
+  margin: 16px 0;
+  padding: 14px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+/* ── RESUMEN BASES ── */
+.base-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-top: 14px; }
+.base-cell {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.base-label { font-size: 11px; color: #64748b; text-transform: uppercase; }
+.base-value { font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; color: #38bdf8; word-break: break-all; }
+
+/* ── PAGE TITLE ── */
+.page-title { font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+.page-sub { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+
+/* STEP lines */
+.step-title-line { color: #38bdf8; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">Métodos <span>Numéricos</span></div>
+  <div class="nav-item active" onclick="showPage('taylor',this)">
+    <span class="nav-icon">𝑃</span> Taylor
+  </div>
+  <div class="nav-item" onclick="showPage('base',this)">
+    <span class="nav-icon">₂</span> Cambio de base
+  </div>
+  <div class="nav-item" onclick="showPage('ecnl',this)">
+    <span class="nav-icon">∫</span> Ec. no lineales
+  </div>
+  <div class="nav-item" onclick="showPage('sistema',this)">
+    <span class="nav-icon">⊗</span> Sistemas NL
+  </div>
+  <div class="nav-item" onclick="showPage('lagrange',this)">
+    <span class="nav-icon">𝐿</span> Lagrange
+  </div>
+  <div class="nav-item" onclick="showPage('diferencias',this)">
+    <span class="nav-icon">Δ</span> Dif. divididas
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- ══════════════════════ TAYLOR ══════════════════════ -->
+<div id="page-taylor" class="page active">
+  <p class="page-title">Polinomio de Taylor</p>
+  <p class="page-sub">Aproximación de funciones mediante derivadas sucesivas</p>
+  <div class="teoria-card">
+    <h2>¿Qué es el polinomio de Taylor?</h2>
+    <p>Aproxima una función f(x) usando sus derivadas en un punto <em>a</em>. A mayor grado, mejor la aproximación cerca de ese punto. El resto de Lagrange acota el error máximo.</p>
+    <div class="formula-block">\[ P_n(x) = f(a) + f'(a)(x-a) + \frac{f''(a)}{2!}(x-a)^2 + \cdots + \frac{f^{(n)}(a)}{n!}(x-a)^n \]</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Parámetros</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3">
+        <label>Función f(x) — sintaxis SymPy: sin(x), exp(x), x**2</label>
+        <input id="t-func" value="exp(x+sin(3*x))">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Punto a (centro)</label><input id="t-a" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>Grado n</label><input id="t-n" type="number" value="5" min="1" max="15"></div>
+    </div>
+    <button class="btn" onclick="calcTaylor()">▶ Calcular</button>
+  </div>
+  <div id="res-taylor"></div>
+  <canvas id="chart-taylor" style="margin-top:20px;display:none"></canvas>
+</div>
+
+<!-- ══════════════════════ BASE ══════════════════════ -->
+<div id="page-base" class="page">
+  <p class="page-title">Cambio de base</p>
+  <p class="page-sub">Conversión entre decimal, binario, octal y hexadecimal</p>
+  <div class="teoria-card">
+    <h2>¿Cómo funciona?</h2>
+    <p>Para convertir un entero a base <em>b</em>: dividir sucesivamente por <em>b</em> y leer los residuos de abajo hacia arriba. Para fracciones: multiplicar por <em>b</em> y extraer la parte entera en cada paso.</p>
+    <div class="formula-block">42 ÷ 2 → residuos: 0 1 0 1 0 1 → leer al revés: <b>101010</b>₂</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Conversión</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>Número (ej: 42.5, 1A.8, 101.11)</label><input id="b-num" value="42.5"></div>
+      <div class="form-group">
+        <label>Base origen</label>
+        <select id="b-from">
+          <option value="10">Decimal (10)</option>
+          <option value="2">Binario (2)</option>
+          <option value="8">Octal (8)</option>
+          <option value="16">Hexadecimal (16)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Base destino</label>
+        <select id="b-to">
+          <option value="2">Binario (2)</option>
+          <option value="8">Octal (8)</option>
+          <option value="10">Decimal (10)</option>
+          <option value="16">Hexadecimal (16)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="calcBase()">▶ Convertir</button>
+  </div>
+  <div id="res-base"></div>
+</div>
+
+<!-- ══════════════════════ EC NO LINEALES ══════════════════════ -->
+<div id="page-ecnl" class="page">
+  <p class="page-title">Ecuaciones no lineales en una variable</p>
+  <p class="page-sub">Encuentra raíces de f(x) = 0</p>
+  <div class="teoria-card">
+    <h2>Bisección vs Newton-Raphson</h2>
+    <p><b>Bisección</b>: divide el intervalo [a,b] a la mitad. Requiere cambio de signo. Convergencia lineal — lento pero seguro.<br>
+    <b>Newton-Raphson</b>: usa la tangente para iterar. Convergencia cuadrática — muy rápido cerca de la raíz, pero puede divergir si x₀ es malo o f′≈0.</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showSub('ecnl','bis',this)">Bisección</button>
+    <button class="tab" onclick="showSub('ecnl','nr',this)">Newton-Raphson</button>
+  </div>
+  <!-- Bisección -->
+  <div id="sub-ecnl-bis" class="subpage active">
+    <div class="card">
+      <div class="card-title">Bisección</div>
+      <div class="formula-block" style="text-align:left;font-size:13px">c = (a + b) / 2 &nbsp;·&nbsp; si f(a)·f(c) &lt; 0 → b = c, si no → a = c</div>
+      <br>
+      <div class="form-row">
+        <div class="form-group" style="flex:3"><label>f(x) =</label><input id="bis-f" value="x**3 - x - 2"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>a</label><input id="bis-a" type="number" value="1" step="0.1"></div>
+        <div class="form-group"><label>b</label><input id="bis-b" type="number" value="2" step="0.1"></div>
+        <div class="form-group"><label>Tolerancia</label><input id="bis-tol" type="number" value="0.0001" step="0.00001"></div>
+        <div class="form-group"><label>Máx. iter.</label><input id="bis-max" type="number" value="100"></div>
+      </div>
+      <button class="btn" onclick="calcBiseccion()">▶ Calcular</button>
+    </div>
+    <div id="res-bis"></div>
+    <canvas id="chart-bis" style="margin-top:20px;display:none"></canvas>
+  </div>
+  <!-- Newton -->
+  <div id="sub-ecnl-nr" class="subpage">
+    <div class="card">
+      <div class="card-title">Newton-Raphson</div>
+      <div class="formula-block" style="text-align:left;font-size:13px">\( x_{n+1} = x_n - \dfrac{f(x_n)}{f'(x_n)} \) — la derivada se calcula automáticamente</div>
+      <br>
+      <div class="form-row">
+        <div class="form-group" style="flex:3"><label>f(x) =</label><input id="nr-f" value="x**3 - x - 2"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>x₀</label><input id="nr-x0" type="number" value="1.5" step="0.1"></div>
+        <div class="form-group"><label>Tolerancia</label><input id="nr-tol" type="number" value="0.0001" step="0.00001"></div>
+        <div class="form-group"><label>Máx. iter.</label><input id="nr-max" type="number" value="50"></div>
+      </div>
+      <button class="btn" onclick="calcNewton()">▶ Calcular</button>
+    </div>
+    <div id="res-nr"></div>
+    <canvas id="chart-nr" style="margin-top:20px;display:none"></canvas>
+  </div>
+</div>
+
+<!-- ══════════════════════ SISTEMA NL ══════════════════════ -->
+<div id="page-sistema" class="page">
+  <p class="page-title">Sistemas de ecuaciones no lineales</p>
+  <p class="page-sub">Método de Newton para sistemas 2×2 — la Jacobiana se calcula automáticamente</p>
+  <div class="teoria-card">
+    <h2>Newton para sistemas</h2>
+    <p>En cada iteración se evalúa el vector F y la Jacobiana J (derivadas parciales, calculadas simbólicamente). Se resuelve J·Δ = −F y se actualiza el punto. Converge cuadráticamente cerca de la solución.</p>
+    <div class="formula-block">\[ \mathbf{x}_{k+1} = \mathbf{x}_k - J^{-1} F(\mathbf{x}_k) \]</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sistema F(x,y) = 0</div>
+    <div class="form-row">
+      <div class="form-group"><label>f₁(x,y) =</label><input id="sys-f1" value="x**2 + y**2 - 4"></div>
+      <div class="form-group"><label>f₂(x,y) =</label><input id="sys-f2" value="x*y - 1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>x₀</label><input id="sys-x0" type="number" value="1.5" step="0.1"></div>
+      <div class="form-group"><label>y₀</label><input id="sys-y0" type="number" value="0.5" step="0.1"></div>
+      <div class="form-group"><label>Tolerancia</label><input id="sys-tol" type="number" value="0.00001" step="0.00001"></div>
+      <div class="form-group"><label>Máx. iter.</label><input id="sys-max" type="number" value="30"></div>
+    </div>
+    <button class="btn" onclick="calcSistema()">▶ Calcular</button>
+  </div>
+  <div id="res-sis"></div>
+</div>
+
+<!-- ══════════════════════ LAGRANGE ══════════════════════ -->
+<div id="page-lagrange" class="page">
+  <p class="page-title">Interpolación de Lagrange</p>
+  <p class="page-sub">Polinomio que pasa exactamente por n+1 puntos</p>
+  <div class="teoria-card">
+    <h2>¿Qué es?</h2>
+    <p>Dado n+1 puntos (xᵢ, yᵢ), existe un único polinomio de grado ≤ n que los interpola. La forma de Lagrange construye bases Lᵢ(x) que valen 1 en xᵢ y 0 en los demás nodos.</p>
+    <div class="formula-block">\[ P(x) = \sum_{i=0}^{n} y_i L_i(x), \quad L_i(x) = \prod_{j \neq i} \frac{x - x_j}{x_i - x_j} \]</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Puntos y evaluación</div>
+    <div class="form-row">
+      <div class="form-group"><label>Valores de x (separados por coma)</label><input id="lag-x" value="0, 1, 2, 3"></div>
+      <div class="form-group"><label>Valores de y (separados por coma)</label><input id="lag-y" value="1, 2, 4, 8"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="max-width:180px"><label>Evaluar P en x =</label><input id="lag-eval" type="number" value="1.5" step="0.1"></div>
+    </div>
+    <button class="btn" onclick="calcLagrange()">▶ Calcular</button>
+  </div>
+  <div id="res-lag"></div>
+  <canvas id="chart-lag" style="margin-top:20px;display:none"></canvas>
+</div>
+
+<!-- ══════════════════════ DIFERENCIAS DIVIDIDAS ══════════════════════ -->
+<div id="page-diferencias" class="page">
+  <p class="page-title">Diferencias divididas de Newton</p>
+  <p class="page-sub">Construcción incremental del polinomio interpolante</p>
+  <div class="teoria-card">
+    <h2>¿Qué son?</h2>
+    <p>Dan el mismo polinomio que Lagrange pero de forma incremental: agregar un nuevo punto solo requiere una nueva columna en la tabla. Los coeficientes son las diferencias divididas de la primera fila.</p>
+    <div class="formula-block">\[ P(x) = f[x_0] + f[x_0,x_1](x-x_0) + f[x_0,x_1,x_2](x-x_0)(x-x_1) + \cdots \]</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Puntos y evaluación</div>
+    <div class="form-row">
+      <div class="form-group"><label>Valores de x (separados por coma)</label><input id="ddn-x" value="0, 1, 2, 3"></div>
+      <div class="form-group"><label>Valores de y (separados por coma)</label><input id="ddn-y" value="1, 2, 4, 8"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="max-width:180px"><label>Evaluar P en x =</label><input id="ddn-eval" type="number" value="1.5" step="0.1"></div>
+    </div>
+    <button class="btn" onclick="calcDDN()">▶ Calcular</button>
+  </div>
+  <div id="res-ddn"></div>
+  <canvas id="chart-ddn" style="margin-top:20px;display:none"></canvas>
+</div>
+
+</main>
+</div>
+
+<script>
+const BASE = "http://127.0.0.1:8000";
+const charts = {};
+
+/* ── NAV ── */
+function showPage(id, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + id).classList.add("active");
+  btn.classList.add("active");
+  if (window.MathJax) MathJax.typesetPromise();
+}
+function showSub(page, id, btn) {
+  const par = document.getElementById("page-" + page);
+  par.querySelectorAll(".subpage").forEach(s => s.classList.remove("active"));
+  par.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("sub-" + page + "-" + id).classList.add("active");
+  btn.classList.add("active");
+}
+
+/* ── UI HELPERS ── */
+function resultOK(id, html) {
+  document.getElementById(id).innerHTML =
+    `<div class="result-wrap">
+       <div class="result-header ok">✓ Resultado</div>
+       <div class="result-body">${html}</div>
+     </div>`;
+}
+function resultErr(id, msg) {
+  document.getElementById(id).innerHTML =
+    `<div class="result-wrap">
+       <div class="result-header err">✗ Error</div>
+       <div class="result-body">${msg}</div>
+     </div>`;
+}
+function statsRow(stats) {
+  return '<div class="stats-row">' +
+    stats.map(s =>
+      `<div class="stat-box"><div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div></div>`
+    ).join("") + "</div>";
+}
+function stepsHTML(pasos) {
+  return pasos.map(p => {
+    if (p.startsWith("Paso ") || p.startsWith("f₁") || p.startsWith("f₂") || p.includes("Jacobiana") || p.includes("Verificación"))
+      return `<span class="step-title-line">${esc(p)}</span>`;
+    return esc(p);
+  }).join("\n");
+}
+function esc(s) { return s.replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function tableHTML(cols, rows) {
+  const h = cols.map(c => `<th>${c.label}</th>`).join("");
+  const rs = rows.map(r =>
+    "<tr>" + cols.map(c => `<td>${r[c.key] ?? ""}</td>`).join("") + "</tr>"
+  ).join("");
+  return `<div class="table-wrap"><table><thead><tr>${h}</tr></thead><tbody>${rs}</tbody></table></div>`;
+}
+function mkChart(canvasId, labels, datasets) {
+  const canvas = document.getElementById(canvasId);
+  canvas.style.display = "block";
+  if (charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: { labels: labels.map(v => parseFloat(v).toFixed(2)), datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#94a3b8" } } },
+      scales: {
+        x: { ticks: { color: "#64748b", maxTicksLimit: 10 }, grid: { color: "#1e293b" } },
+        y: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } }
+      }
+    }
+  });
+}
+
+/* ─────────── TAYLOR ─────────── */
+async function calcTaylor() {
+  const expr = document.getElementById("t-func").value;
+  const a = document.getElementById("t-a").value;
+  const n = document.getElementById("t-n").value;
+  const r = await fetch(`${BASE}/taylor?expr=${enc(expr)}&a=${a}&n=${n}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-taylor", r.error);
+  let html = statsRow([
+    { label:"Raíz / Aprox.", value: "—"},
+    { label:"Grado", value: n },
+    { label:"Error máx.", value: Math.max(...r.error).toExponential(3) }
+  ]);
+  html += `<div class="formula-result">\\[ P_{${n}}(x) = ${r.taylor_latex} \\]</div>`;
+  html += stepsHTML(r.pasos);
+  resultOK("res-taylor", html);
+  MathJax.typesetPromise();
+  mkChart("chart-taylor", r.x, [
+    { label:"f(x)", data:r.real, borderColor:"#22c55e", borderWidth:2, pointRadius:0 },
+    { label:`P${n}(x)`, data:r.approx, borderColor:"#38bdf8", borderDash:[5,5], borderWidth:2, pointRadius:0 },
+    { label:"Error", data:r.error, borderColor:"#f59e0b", borderWidth:1.5, pointRadius:0 }
+  ]);
+}
+
+/* ─────────── BASE ─────────── */
+async function calcBase() {
+  const numero = document.getElementById("b-num").value;
+  const bFrom = document.getElementById("b-from").value;
+  const bTo = document.getElementById("b-to").value;
+  const r = await fetch(`${BASE}/base?numero=${enc(numero)}&base_origen=${bFrom}&base_destino=${bTo}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-base", r.error);
+  let html = statsRow([
+    { label:"Original", value: numero + "₍" + bFrom + "₎" },
+    { label:"Decimal", value: r.decimal },
+    { label:`Base ${bTo}`, value: r.resultado }
+  ]);
+  const nombres = {"2":"Binario","8":"Octal","10":"Decimal","16":"Hex"};
+  html += '<div class="base-grid">';
+  for (const [base, val] of Object.entries(r.resumen)) {
+    html += `<div class="base-cell"><div class="base-label">${nombres[base] || "Base " + base} (${base})</div><div class="base-value">${val}</div></div>`;
+  }
+  html += "</div>";
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-base", html);
+}
+
+/* ─────────── BISECCIÓN ─────────── */
+async function calcBiseccion() {
+  const expr = document.getElementById("bis-f").value;
+  const a = document.getElementById("bis-a").value;
+  const b = document.getElementById("bis-b").value;
+  const tol = document.getElementById("bis-tol").value;
+  const maxIt = document.getElementById("bis-max").value;
+  const r = await fetch(`${BASE}/biseccion?expr=${enc(expr)}&a=${a}&b=${b}&tol=${tol}&max_iter=${maxIt}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-bis", r.error);
+  let html = statsRow([
+    { label:"Raíz ≈", value: r.raiz },
+    { label:"f(raíz)", value: r.f_raiz.toExponential(3) },
+    { label:"Iteraciones", value: r.iteraciones_total }
+  ]);
+  html += "\n" + stepsHTML(r.pasos);
+  html += tableHTML(
+    [{key:"n",label:"n"},{key:"a",label:"a"},{key:"b",label:"b"},{key:"c",label:"c"},{key:"fc",label:"f(c)"},{key:"error",label:"error"}],
+    r.tabla
+  );
+  resultOK("res-bis", html);
+  mkChart("chart-bis", r.x_plot, [
+    { label:"f(x)", data:r.y_plot, borderColor:"#22c55e", borderWidth:2, pointRadius:0 },
+    { label:"raíz", data:r.x_plot.map(v => Math.abs(v - r.raiz_x) < (r.x_plot[1]-r.x_plot[0])*1.5 ? 0 : null), borderColor:"#f87171", borderWidth:1.5, pointRadius:0 }
+  ]);
+}
+
+/* ─────────── NEWTON ─────────── */
+async function calcNewton() {
+  const expr = document.getElementById("nr-f").value;
+  const x0 = document.getElementById("nr-x0").value;
+  const tol = document.getElementById("nr-tol").value;
+  const maxIt = document.getElementById("nr-max").value;
+  const r = await fetch(`${BASE}/newton?expr=${enc(expr)}&x0=${x0}&tol=${tol}&max_iter=${maxIt}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-nr", r.error);
+  let html = statsRow([
+    { label:"Raíz ≈", value: r.raiz },
+    { label:"f(raíz)", value: r.f_raiz.toExponential(3) },
+    { label:"Iteraciones", value: r.iteraciones_total }
+  ]);
+  html += `\n<div style="font-size:12px;color:#64748b;margin:6px 0 10px">Derivada calculada: \\( f'(x) = ${r.derivada_latex} \\)</div>`;
+  html += "\n" + stepsHTML(r.pasos);
+  html += tableHTML(
+    [{key:"n",label:"n"},{key:"xn",label:"xₙ"},{key:"fxn",label:"f(xₙ)"},{key:"dfxn",label:"f'(xₙ)"},{key:"x1",label:"xₙ₊₁"},{key:"error",label:"|error|"}],
+    r.tabla
+  );
+  resultOK("res-nr", html);
+  MathJax.typesetPromise();
+  const finiteY = r.y_plot.map(v => (v !== null && isFinite(v) && Math.abs(v) < 1e5) ? v : null);
+  mkChart("chart-nr", r.x_plot, [
+    { label:"f(x)", data:finiteY, borderColor:"#22c55e", borderWidth:2, pointRadius:0 },
+  ]);
+}
+
+/* ─────────── SISTEMA ─────────── */
+async function calcSistema() {
+  const f1 = document.getElementById("sys-f1").value;
+  const f2 = document.getElementById("sys-f2").value;
+  const x0 = document.getElementById("sys-x0").value;
+  const y0 = document.getElementById("sys-y0").value;
+  const tol = document.getElementById("sys-tol").value;
+  const maxIt = document.getElementById("sys-max").value;
+  const r = await fetch(`${BASE}/sistema?f1=${enc(f1)}&f2=${enc(f2)}&x0=${x0}&y0=${y0}&tol=${tol}&max_iter=${maxIt}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-sis", r.error);
+  let html = statsRow([
+    { label:"x ≈", value: r.x },
+    { label:"y ≈", value: r.y },
+    { label:"Iteraciones", value: r.iteraciones_total }
+  ]);
+  html += `<div style="font-size:12px;color:#64748b;margin:6px 0 10px">f₁(x,y) = ${r.f1_val.toExponential(3)} &nbsp;·&nbsp; f₂(x,y) = ${r.f2_val.toExponential(3)}</div>`;
+  html += `\n<div style="font-size:12px;color:#64748b;margin-bottom:10px">Jacobiana: \\( J = ${r.jacobiana_latex} \\)</div>`;
+  html += "\n" + stepsHTML(r.pasos);
+  html += tableHTML(
+    [{key:"n",label:"n"},{key:"x",label:"x"},{key:"y",label:"y"},{key:"f1",label:"f₁"},{key:"f2",label:"f₂"},{key:"norm",label:"‖Δ‖"}],
+    r.tabla
+  );
+  resultOK("res-sis", html);
+  MathJax.typesetPromise();
+}
+
+/* ─────────── LAGRANGE ─────────── */
+async function calcLagrange() {
+  const xs = document.getElementById("lag-x").value;
+  const ys = document.getElementById("lag-y").value;
+  const ev = document.getElementById("lag-eval").value;
+  const r = await fetch(`${BASE}/lagrange?xs_str=${enc(xs)}&ys_str=${enc(ys)}&eval_x=${ev}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-lag", r.error);
+  let html = statsRow([
+    { label:"P("+ev+")", value: r.resultado_eval ?? "—" },
+    { label:"Puntos", value: r.puntos_x.length },
+    { label:"Grado", value: r.puntos_x.length - 1 }
+  ]);
+  html += `<div class="formula-result">\\[ P(x) = ${r.polinomio_latex} \\]</div>`;
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-lag", html);
+  MathJax.typesetPromise();
+  const finiteY = r.y_plot.map(v => (isFinite(v) && Math.abs(v) < 1e6) ? v : null);
+  mkChart("chart-lag", r.x_plot, [
+    { label:"P(x)", data:finiteY, borderColor:"#38bdf8", borderWidth:2, pointRadius:0 },
+    { label:"Puntos", data:r.x_plot.map((v,i) => {
+        const idx = r.puntos_x.findIndex(px => Math.abs(px - v) < 1e-9);
+        return idx >= 0 ? r.puntos_y[idx] : null;
+      }), borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
+
+/* ─────────── DIFERENCIAS DIVIDIDAS ─────────── */
+async function calcDDN() {
+  const xs = document.getElementById("ddn-x").value;
+  const ys = document.getElementById("ddn-y").value;
+  const ev = document.getElementById("ddn-eval").value;
+  const r = await fetch(`${BASE}/diferencias?xs_str=${enc(xs)}&ys_str=${enc(ys)}&eval_x=${ev}`).then(r=>r.json()).catch(e=>({success:false,error:e.message}));
+  if (!r.success) return resultErr("res-ddn", r.error);
+  let html = statsRow([
+    { label:"P("+ev+")", value: r.resultado_eval ?? "—" },
+    { label:"Puntos", value: r.puntos_x.length },
+    { label:"Grado", value: r.puntos_x.length - 1 }
+  ]);
+  html += `<div class="formula-result">\\[ P(x) = ${r.polinomio_latex} \\]</div>`;
+  html += "\n" + stepsHTML(r.pasos);
+  resultOK("res-ddn", html);
+  MathJax.typesetPromise();
+  const finiteY = r.y_plot.map(v => (isFinite(v) && Math.abs(v) < 1e6) ? v : null);
+  mkChart("chart-ddn", r.x_plot, [
+    { label:"P(x)", data:finiteY, borderColor:"#a78bfa", borderWidth:2, pointRadius:0 },
+    { label:"Puntos", data:r.x_plot.map(v => {
+        const idx = r.puntos_x.findIndex(px => Math.abs(px - v) < 1e-9);
+        return idx >= 0 ? r.puntos_y[idx] : null;
+      }), borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
+
+function enc(s) { return encodeURIComponent(s); }
+</script>
+</body>
+</html>
