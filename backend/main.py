@@ -726,3 +726,107 @@ def metodo_euler(expr: str, x0: float, y0: float, h: float, n_steps: int = 10):
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# ──────────────────────────────────────────────────────────────
+# DIFERENCIAS FINITAS — BVP
+@app.get("/diferencias_finitas")
+def diferencias_finitas(
+    p_expr: str = "0",    # coeficiente de y'
+    q_expr: str = "0",    # coeficiente de y
+    r_expr: str = "0",    # lado derecho
+    a: float = 0,         # extremo izquierdo
+    b: float = 1,         # extremo derecho
+    ya: float = 0,        # condición y(a) = ya
+    yb: float = 1,        # condición y(b) = yb
+    n: int = 10           # número de subintervalos
+):
+    try:
+        if n < 2:
+            return {"success": False, "error": "Se necesitan al menos 2 subintervalos"}
+        if a >= b:
+            return {"success": False, "error": "a debe ser menor que b"}
+
+        p_sym = sympify(p_expr)
+        q_sym = sympify(q_expr)
+        r_sym = sympify(r_expr)
+
+        h = (b - a) / n
+        # Nodos interiores: x_1, x_2, ..., x_{n-1}
+        nodos = [a + i * h for i in range(n + 1)]
+        interiores = nodos[1:-1]  # n-1 nodos
+        m = len(interiores)
+
+        pasos = []
+        pasos.append(f"EDO: y'' + p(x)·y' + q(x)·y = r(x)")
+        pasos.append(f"p(x) = {p_expr}  |  q(x) = {q_expr}  |  r(x) = {r_expr}")
+        pasos.append(f"Intervalo: [{a}, {b}]  |  n = {n}  →  h = {round(h, 8)}")
+        pasos.append(f"Condiciones: y({a}) = {ya},  y({b}) = {yb}")
+        pasos.append(f"Nodos interiores: {m}")
+        pasos.append(f"\nDiscretización (diferencias centradas):")
+        pasos.append(f"  y'' ≈ (y_{{i-1}} - 2y_i + y_{{i+1}}) / h²")
+        pasos.append(f"  y'  ≈ (y_{{i+1}} - y_{{i-1}}) / (2h)")
+        pasos.append(f"\nSustituyendo:")
+        pasos.append(f"  (1/h² - p_i/2h)·y_{{i-1}} + (q_i - 2/h²)·y_i + (1/h² + p_i/2h)·y_{{i+1}} = r_i")
+
+        # Construir sistema tridiagonal A·y = b_vec
+        A_mat = [[0.0] * m for _ in range(m)]
+        b_vec = [0.0] * m
+
+        pasos.append(f"\nPaso 1: Construir sistema tridiagonal {m}×{m}")
+
+        for i, xi in enumerate(interiores):
+            pi = float(p_sym.subs(x, xi).evalf())
+            qi = float(q_sym.subs(x, xi).evalf())
+            ri = float(r_sym.subs(x, xi).evalf())
+
+            sub  = 1/h**2 - pi/(2*h)   # coef y_{i-1}
+            diag = qi - 2/h**2          # coef y_i
+            sup  = 1/h**2 + pi/(2*h)   # coef y_{i+1}
+
+            A_mat[i][i] = diag
+            if i > 0:
+                A_mat[i][i-1] = sub
+            if i < m - 1:
+                A_mat[i][i+1] = sup
+
+            rhs = ri
+            # Aplicar condiciones de frontera
+            if i == 0:
+                rhs -= sub * ya
+            if i == m - 1:
+                rhs -= sup * yb
+
+            b_vec[i] = rhs
+            pasos.append(f"  i={i+1}, x={round(xi,6)}: sub={round(sub,6)}, diag={round(diag,6)}, sup={round(sup,6)}, rhs={round(rhs,6)}")
+
+        # Resolver con eliminación gaussiana (tridiagonal)
+        pasos.append(f"\nPaso 2: Resolver sistema por eliminación gaussiana")
+        A_np = np.array(A_mat, dtype=float)
+        b_np = np.array(b_vec, dtype=float)
+
+        try:
+            sol = np.linalg.solve(A_np, b_np).tolist()
+        except np.linalg.LinAlgError:
+            return {"success": False, "error": "Sistema singular — revisa los coeficientes"}
+
+        # Solución completa incluyendo condiciones de frontera
+        y_sol = [ya] + sol + [yb]
+
+        pasos.append(f"\nPaso 3: Solución en cada nodo")
+        tabla = []
+        for i, (xi, yi) in enumerate(zip(nodos, y_sol)):
+            pasos.append(f"  y({round(xi, 6)}) = {round(yi, 8)}")
+            tabla.append({"i": i, "x": round(xi, 8), "y": round(yi, 8)})
+
+        return {
+            "success": True,
+            "h": h,
+            "n_interiores": m,
+            "pasos": pasos,
+            "tabla": tabla,
+            "x_plot": [round(v, 8) for v in nodos],
+            "y_plot": [round(v, 8) for v in y_sol],
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}

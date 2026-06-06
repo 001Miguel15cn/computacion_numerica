@@ -293,6 +293,9 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   <div class="nav-item" onclick="showPage('euler',this)">
     <span class="nav-icon">Δx</span> Método Euler
   </div>
+  <div class="nav-item" onclick="showPage('df',this)">
+  <span class="nav-icon">∇</span> Dif. Finitas
+</div>
 </aside>
 
 <!-- ── MAIN ── -->
@@ -650,6 +653,39 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   </div>
   <div id="res-euler"></div>
   <canvas id="chart-euler" style="margin-top:20px;display:none"></canvas>
+</div>
+
+<!-- ══════════════════════ DIFERENCIAS FINITAS ══════════════════════ -->
+<div id="page-df" class="page">
+  <p class="page-title">Diferencias Finitas — BVP</p>
+  <p class="page-sub">Resolución de EDOs de segundo orden con condiciones de frontera</p>
+  <div class="teoria-card">
+    <h2>¿Qué es?</h2>
+    <p>Resuelve ecuaciones de la forma <strong>y'' + p(x)y' + q(x)y = r(x)</strong> con condiciones
+    de frontera y(a) = α, y(b) = β. Se divide el intervalo en <em>n</em> subintervalos y se
+    aproximan las derivadas con diferencias centradas, generando un sistema tridiagonal.</p>
+    <div class="formula-block">
+      \[ \frac{y_{i-1} - 2y_i + y_{i+1}}{h^2} + p_i\frac{y_{i+1}-y_{i-1}}{2h} + q_i\,y_i = r_i \]
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Parámetros — EDO: y'' + p(x)y' + q(x)y = r(x)</div>
+    <div class="form-row">
+      <div class="form-group"><label>p(x) — coef. de y'</label><input id="df-p" value="0"></div>
+      <div class="form-group"><label>q(x) — coef. de y</label><input id="df-q" value="0"></div>
+      <div class="form-group"><label>r(x) — lado derecho</label><input id="df-r" value="x"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>a (extremo izq.)</label><input id="df-a" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>b (extremo der.)</label><input id="df-b" type="number" value="1" step="0.1"></div>
+      <div class="form-group"><label>y(a) = α</label><input id="df-ya" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>y(b) = β</label><input id="df-yb" type="number" value="1" step="0.1"></div>
+      <div class="form-group"><label>Subintervalos n</label><input id="df-n" type="number" value="10" min="2" max="200"></div>
+    </div>
+    <button class="btn" onclick="calcDF()">▶ Calcular</button>
+  </div>
+  <div id="res-df"></div>
+  <canvas id="chart-df" style="margin-top:20px;display:none"></canvas>
 </div>
 
 </main>
@@ -1133,6 +1169,53 @@ async function calcAjusteExp() {
     { label:"Ajuste exponencial", data:r.y_plot, borderColor:"#f87171", borderWidth:2, pointRadius:0 },
     { label:"Puntos", data:r.x_plot.map(v=>{const i=r.puntos_x.findIndex(px=>Math.abs(px-v)<1e-9);return i>=0?r.puntos_y[i]:null;}),
       borderColor:"#f59e0b", pointRadius:5, showLine:false, borderWidth:0 }
+  ]);
+}
+
+/* ─────────── DIFERENCIAS FINITAS BVP ─────────── */
+async function calcDF() {
+  const p  = document.getElementById("df-p").value;
+  const q  = document.getElementById("df-q").value;
+  const r  = document.getElementById("df-r").value;
+  const a  = document.getElementById("df-a").value;
+  const b  = document.getElementById("df-b").value;
+  const ya = document.getElementById("df-ya").value;
+  const yb = document.getElementById("df-yb").value;
+  const n  = document.getElementById("df-n").value;
+
+  const res = await fetch(
+    `${BASE}/diferencias_finitas?p_expr=${enc(p)}&q_expr=${enc(q)}&r_expr=${enc(r)}&a=${a}&b=${b}&ya=${ya}&yb=${yb}&n=${n}`
+  ).then(r => r.json()).catch(e => ({ success: false, error: e.message }));
+
+  if (!res.success) return resultErr("res-df", res.error);
+
+  let html = statsRow([
+    { label: "h",           value: res.h.toFixed(6) },
+    { label: "Nodos int.",  value: res.n_interiores },
+    { label: "y(a)",        value: ya },
+    { label: "y(b)",        value: yb },
+  ]);
+
+  html += "\n" + stepsHTML(res.pasos);
+  html += tableHTML(
+    [
+      { key: "i", label: "i" },
+      { key: "x", label: "x" },
+      { key: "y", label: "y(x)" },
+    ],
+    res.tabla
+  );
+
+  resultOK("res-df", html);
+  mkChart("chart-df", res.x_plot, [
+    {
+      label: "y(x) — Dif. Finitas",
+      data: res.y_plot,
+      borderColor: "#f472b6",
+      borderWidth: 2,
+      pointRadius: 3,
+      fill: false,
+    }
   ]);
 }
 </script>
