@@ -665,3 +665,64 @@ def ajuste_exponencial(xs_str: str, ys_str: str, eval_x: float = None):
                 "resultado_eval":resultado_eval,"pasos":pasos,
                 "x_plot":xs_p,"y_plot":[a*_math.exp(b*xi) for xi in xs_p],"puntos_x":xs,"puntos_y":ys}
     except Exception as e: return {"success":False,"error":str(e)}
+
+# ──────────────────────────────────────────────────────────────
+# MÉTODO DE EULER (EDO)
+# ──────────────────────────────────────────────────────────────
+@app.get("/euler")
+def metodo_euler(expr: str, x0: float, y0: float, h: float, n_steps: int = 10):
+    try:
+        if h <= 0:
+            return {"success": False, "error": "El paso h debe ser > 0"}
+        if n_steps < 1:
+            return {"success": False, "error": "Se necesita al menos 1 paso"}
+
+        f_sym = sympify(expr)
+        pasos = [
+            f"EDO: dy/dx = f(x,y) = {expr}",
+            f"Condición inicial: y({x0}) = {y0}",
+            f"Paso h = {h}  |  Pasos: {n_steps}",
+            "\nFórmula: y_{i+1} = y_i + h · f(x_i, y_i)",
+        ]
+
+        xi, yi = float(x0), float(y0)
+        xs_p, ys_p = [xi], [yi]
+        tabla = []
+
+        for i in range(n_steps):
+            fval = float(f_sym.subs({x: xi, y: yi}).evalf())
+            yi1 = yi + h * fval
+            xi1 = xi + h
+
+            tabla.append({
+                "n": i + 1,
+                "xi": round(xi, 8),
+                "yi": round(yi, 8),
+                "f": round(fval, 8),
+                "yi1": round(yi1, 8),
+                "xi1": round(xi1, 8),
+            })
+            pasos.append(
+                f"\nPaso {i+1}: f({round(xi,5)}, {round(yi,5)}) = {round(fval,8)}"
+            )
+            pasos.append(
+                f"  y_{i+1} = {round(yi,5)} + {h}·{round(fval,8)} = {round(yi1,8)}"
+            )
+            pasos.append(f"  x_{i+1} = {round(xi1,8)}")
+
+            xi, yi = xi1, yi1
+            xs_p.append(xi)
+            ys_p.append(yi)
+
+        return {
+            "success": True,
+            "x_final": round(xi, 10),
+            "y_final": round(yi, 10),
+            "iteraciones_total": n_steps,
+            "pasos": pasos,
+            "tabla": tabla,
+            "x_plot": xs_p,
+            "y_plot": ys_p,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}

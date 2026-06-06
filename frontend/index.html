@@ -290,6 +290,9 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   <div class="nav-item" onclick="showPage('ajuste',this)">
     <span class="nav-icon">≈</span> Ajuste curvas
   </div>
+  <div class="nav-item" onclick="showPage('euler',this)">
+    <span class="nav-icon">Δx</span> Método Euler
+  </div>
 </aside>
 
 <!-- ── MAIN ── -->
@@ -614,6 +617,41 @@ tr:hover td { background: #1e293b; color: #e2e8f0; }
   </div>
 </div>
 
+<!-- ══════════════════════ EULER ══════════════════════ -->
+<div id="page-euler" class="page">
+  <p class="page-title">Método de Euler</p>
+  <p class="page-sub">Integración numérica de ecuaciones diferenciales ordinarias (EDO)</p>
+  <div class="teoria-card">
+    <h2>¿Qué es el método de Euler?</h2>
+    <p>Resuelve EDOs con valor inicial dado. En cada paso avanza en <em>x</em> con tamaño <em>h</em> y actualiza <em>y</em> usando la pendiente en el punto actual.</p>
+    <div class="formula-block">\[ y_{i+1} = y_i + h \cdot f(x_i, y_i) \]</div>
+    <p style="margin-top:10px;font-size:13px;color:#94a3b8">
+      <b>h</b>: tamaño del paso &nbsp;·&nbsp;
+      <b>xᵢ</b>: valor de x en el paso i &nbsp;·&nbsp;
+      <b>yᵢ</b>: valor de y en el paso i &nbsp;·&nbsp;
+      <b>f(xᵢ,yᵢ)</b>: derivada dy/dx
+    </p>
+  </div>
+  <div class="card">
+    <div class="card-title">Parámetros</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3">
+        <label>f(x,y) = dy/dx — sintaxis SymPy: x+y, -2*x*y, sin(x)</label>
+        <input id="euler-f" value="x + y">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>x₀</label><input id="euler-x0" type="number" value="0" step="0.1"></div>
+      <div class="form-group"><label>y₀ = y(x₀)</label><input id="euler-y0" type="number" value="1" step="0.1"></div>
+      <div class="form-group"><label>Paso h</label><input id="euler-h" type="number" value="0.1" step="0.01" min="0.0001"></div>
+      <div class="form-group"><label>Nº de pasos</label><input id="euler-n" type="number" value="10" min="1" max="500"></div>
+    </div>
+    <button class="btn" onclick="calcEuler()">▶ Calcular</button>
+  </div>
+  <div id="res-euler"></div>
+  <canvas id="chart-euler" style="margin-top:20px;display:none"></canvas>
+</div>
+
 </main>
 </div>
 
@@ -868,6 +906,47 @@ async function calcDDN() {
 }
 
 function enc(s) { return encodeURIComponent(s); }
+
+/* ─────────── EULER ─────────── */
+async function calcEuler() {
+  const expr = document.getElementById("euler-f").value;
+  const x0   = document.getElementById("euler-x0").value;
+  const y0   = document.getElementById("euler-y0").value;
+  const h    = document.getElementById("euler-h").value;
+  const n    = document.getElementById("euler-n").value;
+  const r = await fetch(
+    `${BASE}/euler?expr=${enc(expr)}&x0=${x0}&y0=${y0}&h=${h}&n_steps=${n}`
+  ).then(r => r.json()).catch(e => ({ success: false, error: e.message }));
+  if (!r.success) return resultErr("res-euler", r.error);
+  let html = statsRow([
+    { label: "x final", value: r.x_final },
+    { label: "y final ≈", value: r.y_final },
+    { label: "Pasos", value: r.iteraciones_total }
+  ]);
+  html += "\n" + stepsHTML(r.pasos);
+  html += tableHTML(
+    [
+      { key: "n", label: "n" },
+      { key: "xi", label: "xᵢ" },
+      { key: "yi", label: "yᵢ" },
+      { key: "f", label: "f(xᵢ,yᵢ)" },
+      { key: "yi1", label: "yᵢ₊₁" },
+      { key: "xi1", label: "xᵢ₊₁" },
+    ],
+    r.tabla
+  );
+  resultOK("res-euler", html);
+  mkChart("chart-euler", r.x_plot, [
+    {
+      label: "Solución Euler",
+      data: r.y_plot,
+      borderColor: "#22c55e",
+      borderWidth: 2,
+      pointRadius: 4,
+      fill: false,
+    }
+  ]);
+}
 
 /* ─────────── TAYLOR 2 VARIABLES ─────────── */
 async function calcTaylor2() {
